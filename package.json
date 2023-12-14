@@ -1,0 +1,56 @@
+{
+    "name": "@kinshipjs/json",
+    "version": "0.0.9-development",
+    "homepage": "https://github.com/kinshipjs/adapter-json",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/kinshipjs/adapter-json"
+    },
+    "description": "Adapter for Kinship that works for JavaScript objects.",
+    "type": "module",
+    "module": "./dist/index.js",
+    "types": "./dist/types/adapter.d.ts",
+    "scripts": {
+        "clean": "del /S /Q .\\dist",
+        "build": "npm run clean && npm run build:source && npm run build:types",
+        "build:source": "tsup",
+        "build:types": "tsc",
+        "test": "node ./tests/test.js",
+        "prepack": "npm run build"
+    },
+    "keywords": [
+        "kinshipjs",
+        "typescript",
+        "table",
+        "query",
+        "insert",
+        "update",
+        "delete"
+    ],
+    "author": "Travis Zuleger",
+    "license": "(MIT OR Apache-2.0)",
+    "devDependencies": {
+        "@kinshipjs/adapter-tests": "file:../adapter-tests",
+        "@types/node": "^20.3.1",
+        "dotenv": "^16.0.3",
+        "tsup": "^7.2.0",
+        "typescript": "^4.9.4"
+    },
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/types/adapter.d.ts"
+        }
+    },
+    "typesVersions": {
+        "*": {
+            ".": [
+                "./dist/types/adapter.d.ts"
+            ]
+        }
+    },
+    "dependencies": {
+        "@kinshipjs/core": "^0.0.48-development",
+        "lodash-es": "^4.17.21"
+    }
+}
