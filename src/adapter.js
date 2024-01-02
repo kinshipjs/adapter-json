@@ -2,6 +2,7 @@
 // the JSON adapter is much different from other adapters, as a command and respective arguments aren't used, everything is done within this program rather than
 // being expected to be sent to a database server. Therefore, many of the types will be casted and what is returned from each of the serialization functions
 // will not reflect what would actually be sent.
+import { KinshipNonUniqueKeyError, KinshipValueCannotBeNullError } from '@kinshipjs/core/errors';
 import _ from 'lodash-es';
 
 /**
@@ -188,11 +189,24 @@ export function adapter(configuration) {
                     let [mainTable, ...remainingTables] = from;
 
                     // @TODO: apply from (look for like primary keys then map property names to the aliased versions.)
-
+                    let results = configuration.$data[mainTable.realName];
+                    for(const table of remainingTables) {
+                        const refererKey = table.refererTableKey.alias;
+                        const referenceKey = table.referenceTableKey.column;
+                        configuration.$data[table.realName].forEach(r => {
+                            const idx = results.findIndex(res => res[refererKey] === r[referenceKey]);
+                            if(idx !== -1) {
+                                results[idx] = { 
+                                    ...results[idx],
+                                    ...Object.fromEntries(select.filter(col => col.table === table.alias).map(col => [col.alias, r[col.column]]))
+                                };
+                            }
+                        });
+                    }
 
                     // apply where
                     /** @type {any[]} */
-                    let results = configuration.$data[mainTable.realName].filter(v => filterFn(v, where));
+                    results = configuration.$data[mainTable.realName].filter(v => filterFn(v, where));
 
                     // apply group by
                     if(group_by) {
@@ -285,6 +299,9 @@ export function adapter(configuration) {
                                     if(configuration.$schema[table][c].isIdentity) {
                                         return [c, startLen+n];
                                     }
+                                    if(!configuration.$schema[table][c].isNullable && v[m] == null) {
+                                        throw new KinshipValueCannotBeNullError(2, ``);
+                                    }
                                     return [c, v[m]];
                                 }))
                             }));
@@ -295,7 +312,7 @@ export function adapter(configuration) {
                             for(const r of newTable) {
                                 const fullKey = uniqueKeys.map(k => r[k]).join('_');
                                 if(uniques.has(fullKey)) {
-                                    throw Error('NON_UNIQUE_KEY');
+                                    throw new KinshipNonUniqueKeyError(1, ``);
                                     // throw ErrorTypes.NON_UNIQUE_KEY();
                                 }
                                 uniques.add(fullKey);

@@ -201,54 +201,26 @@ const database = {
  * @prop {User} Owner 
  */
 
-// /** @type {KinshipContext<Car>} */
-// const cars = new KinshipContext(adapter(database), "Car");
-
-// cars.hasOne(m => m.Owner.fromTable("User").withKeys("Id", "CarId"));
-// cars.afterInsert(m => {
-//     console.log(`after insert: m = `, m);
-// })
-// cars.select().then(r => {
-//     console.log(`Results after select`, r);
-//     cars.insert({
-//         Color: "Grey",
-//         MPGCity: 24,
-//         MPGHwy: 35,
-//         Make: "Kia",
-//         Model: "Soul",
-//         Mileage: 132000,
-//         Year: 2012
-//     }).then(([car]) => {
-//         console.log(`Inserted`, car);
-//         car.Mileage += 1000;
-//         cars.update(car).then(n => {
-//             console.log(`${n} updated.`);
-//             console.log(database.$data.Car);
-//         });
-//     });
-// });
-
-
 /** @type {import("../src/adapter.js").JsonDatabase} */
 const testDatabase = {
     $schema: {
-        User: {
-            Id: {
-                table: "User",
-                field: "Id",
+        Track: {
+            TrackId: {
+                table: "Track",
+                field: "TrackId",
                 alias: "",
                 commandAlias: "",
                 isPrimary: true,
                 isIdentity: false,
                 isVirtual: false,
                 isNullable: false,
-                isUnique: false,
-                datatype: "string",
+                isUnique: true,
+                datatype: "int",
                 defaultValue: () => undefined
             },
-            FirstName: {
-                table: "User",
-                field: "FirstName",
+            Name: {
+                table: "Track",
+                field: "Name",
                 alias: "",
                 commandAlias: "",
                 isPrimary: false,
@@ -259,50 +231,35 @@ const testDatabase = {
                 datatype: "string",
                 defaultValue: () => undefined
             },
-            LastName: {
-                table: "User",
-                field: "LastName",
+            AlbumId: {
+                table: "Track",
+                field: "AlbumId",
                 alias: "",
                 commandAlias: "",
                 isPrimary: false,
                 isIdentity: false,
                 isVirtual: false,
-                isNullable: false,
-                isUnique: false,
-                datatype: "string",
-                defaultValue: () => undefined
-            }
-        },
-        Role: {
-            Id: {
-                table: "Role",
-                field: "Id",
-                alias: "",
-                commandAlias: "",
-                isPrimary: true,
-                isIdentity: true,
-                isVirtual: false,
-                isNullable: false,
+                isNullable: true,
                 isUnique: false,
                 datatype: "int",
                 defaultValue: () => undefined
             },
-            Title: {
-                table: "Role",
-                field: "Title",
+            GenreId: {
+                table: "Track",
+                field: "GenreId",
                 alias: "",
                 commandAlias: "",
                 isPrimary: false,
                 isIdentity: false,
                 isVirtual: false,
-                isNullable: false,
+                isNullable: true,
                 isUnique: false,
-                datatype: "string",
+                datatype: "int",
                 defaultValue: () => undefined
             },
-            Description: {
-                table: "Role",
-                field: "Description",
+            Composer: {
+                table: "Track",
+                field: "Composer",
                 alias: "",
                 commandAlias: "",
                 isPrimary: false,
@@ -313,27 +270,150 @@ const testDatabase = {
                 datatype: "string",
                 defaultValue: () => undefined
             },
+            Milliseconds: {
+                table: "Track",
+                field: "Milliseconds",
+                alias: "",
+                commandAlias: "",
+                isPrimary: false,
+                isIdentity: false,
+                isVirtual: false,
+                isNullable: false,
+                isUnique: false,
+                datatype: "int",
+                defaultValue: () => undefined
+            },
+            Bytes: {
+                table: "Track",
+                field: "Bytes",
+                alias: "",
+                commandAlias: "",
+                isPrimary: false,
+                isIdentity: false,
+                isVirtual: false,
+                isNullable: true,
+                isUnique: false,
+                datatype: "int",
+                defaultValue: () => undefined
+            },
+            UnitPrice: {
+                table: "Track",
+                field: "UnitPrice",
+                alias: "",
+                commandAlias: "",
+                isPrimary: false,
+                isIdentity: false,
+                isVirtual: false,
+                isNullable: false,
+                isUnique: false,
+                datatype: "float",
+                defaultValue: () => undefined
+            }
         },
-        xUserRole: {
-            UserId: {
-                table: "xUserRole",
-                field: "UserId",
+        PlaylistTrack: {
+            PlaylistId: {
+                table: "PlaylistTrack",
+                field: "PlaylistId",
                 alias: "",
                 commandAlias: "",
                 isPrimary: true,
                 isIdentity: false,
                 isVirtual: false,
                 isNullable: false,
-                isUnique: false,
-                datatype: "string",
+                isUnique: true,
+                datatype: "int",
                 defaultValue: () => undefined
             },
-            RoleId: {
-                table: "xUserRole",
-                field: "RoleId",
+            TrackId: {
+                table: "PlaylistTrack",
+                field: "TrackId",
                 alias: "",
                 commandAlias: "",
                 isPrimary: true,
+                isIdentity: false,
+                isVirtual: false,
+                isNullable: false,
+                isUnique: true,
+                datatype: "int",
+                defaultValue: () => undefined
+            }
+        },
+        Playlist: {
+            PlaylistId: {
+                table: "Playlist",
+                field: "PlaylistId",
+                alias: "",
+                commandAlias: "",
+                isPrimary: true,
+                isIdentity: false,
+                isVirtual: false,
+                isNullable: false,
+                isUnique: true,
+                datatype: "int",
+                defaultValue: () => undefined
+            },
+            Name: {
+                table: "Playlist",
+                field: "Name",
+                alias: "",
+                commandAlias: "",
+                isPrimary: false,
+                isIdentity: false,
+                isVirtual: false,
+                isNullable: true,
+                isUnique: false,
+                datatype: "string",
+                defaultValue: () => undefined
+            }
+        },
+        Genre: {
+            GenreId: {
+                table: "Genre",
+                field: "GenreId",
+                alias: "",
+                commandAlias: "",
+                isPrimary: true,
+                isIdentity: false,
+                isVirtual: false,
+                isNullable: false,
+                isUnique: true,
+                datatype: "int",
+                defaultValue: () => undefined
+            },
+            Name: {
+                table: "Genre",
+                field: "Name",
+                alias: "",
+                commandAlias: "",
+                isPrimary: false,
+                isIdentity: false,
+                isVirtual: false,
+                isNullable: true,
+                isUnique: false,
+                datatype: "string",
+                defaultValue: () => undefined
+            }
+        },
+        Album: {
+            AlbumId: {
+                table: "Album",
+                field: "AlbumId",
+                alias: "",
+                commandAlias: "",
+                isPrimary: true,
+                isIdentity: false,
+                isVirtual: false,
+                isNullable: false,
+                isUnique: true,
+                datatype: "int",
+                defaultValue: () => undefined
+            },
+            Title: {
+                table: "Album",
+                field: "Title",
+                alias: "",
+                commandAlias: "",
+                isPrimary: false,
                 isIdentity: false,
                 isVirtual: false,
                 isNullable: false,
@@ -344,10 +424,12 @@ const testDatabase = {
         }
     },
     $data: {
-        User: [],
-        Role: [],
-        xUserRole: []
+        Track: [],
+        PlaylistTrack: [],
+        Playlist: [],
+        Genre: [],
+        Album: []
     }
 }
 
-// testAdapter(adapter(testDatabase));
+await testAdapter(adapter(testDatabase));
