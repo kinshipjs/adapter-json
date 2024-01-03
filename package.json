@@ -34,7 +34,7 @@
         "lodash-es": "^4.17.21"
     },
     "devDependencies": {
-        "@kinshipjs/adapter-tests": "^0.2.2",
+        "@kinshipjs/adapter-tests": "^0.2.4",
         "@types/lodash-es": "^4.17.12",
         "@types/node": "^20.3.1",
         "dotenv": "^16.0.3",
