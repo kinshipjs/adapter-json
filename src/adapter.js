@@ -3,7 +3,7 @@
 // being expected to be sent to a database server. Therefore, many of the types will be casted and what is returned from each of the serialization functions
 // will not reflect what would actually be sent.
 import { KinshipNonUniqueKeyError, KinshipValueCannotBeNullError } from '@kinshipjs/core/errors';
-import { merge, groupBy } from 'lodash-es';
+import { clone, merge, groupBy, extend } from 'lodash-es';
 
 /**
  * @typedef {_JsonDatabase<SchemaColumnDefinition>} JsonDatabase 
@@ -150,30 +150,34 @@ function filterFn(m, props, stays=true) {
 
 /** 
  * Adapter for `Kinship` with intended use on JavaScript objects.
- * @param {_JsonDatabase<SchemaColumnDefinition>} config
+ * @param {_JsonDatabase<SchemaColumnDefinition>} configuration
  * @returns {import('@kinshipjs/core/adapter').KinshipAdapterConnection}
  */
-export function adapter(config) {
-    /** @type {_JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>} */
-    let configuration = {
-        $data: config.$data,
-        $schema: {}
-    };
-    for(const tableKey in config.$schema) {
-        const table = config.$schema[tableKey];
-        configuration.$schema[tableKey] = {};
+export function adapter(configuration) {
+    return _adapter(/** @type {any} */ (configuration));
+}
+
+/** 
+ * Adapter for `Kinship` with intended use on JavaScript objects.
+ * @param {_JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>} configuration
+ * @returns {import('@kinshipjs/core/adapter').KinshipAdapterConnection}
+ */
+function _adapter(configuration) {
+    configuration = /** @type {_JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>} */ (configuration);
+    for(const tableKey in configuration.$schema) {
+        const table = configuration.$schema[tableKey];
         for(const fieldKey in table) {
             configuration.$schema[tableKey][fieldKey] = {
                 alias: "",
                 commandAlias: "",
-                datatype: config.$schema[tableKey][fieldKey].datatype,
-                defaultValue: config.$schema[tableKey][fieldKey].defaultValue ?? (() => undefined),
+                datatype: configuration.$schema[tableKey][fieldKey].datatype,
+                defaultValue: configuration.$schema[tableKey][fieldKey].defaultValue ?? (() => undefined),
                 table: tableKey,
-                isPrimary: config.$schema[tableKey][fieldKey].isPrimary ?? false,
-                isIdentity: config.$schema[tableKey][fieldKey].isIdentity ?? false,
+                isPrimary: configuration.$schema[tableKey][fieldKey].isPrimary ?? false,
+                isIdentity: configuration.$schema[tableKey][fieldKey].isIdentity ?? false,
                 isVirtual: false,
-                isNullable: config.$schema[tableKey][fieldKey].isNullable ?? false,
-                isUnique: config.$schema[tableKey][fieldKey].isUnique ?? false,
+                isNullable: configuration.$schema[tableKey][fieldKey].isNullable ?? false,
+                isUnique: configuration.$schema[tableKey][fieldKey].isUnique ?? configuration.$schema[tableKey][fieldKey].isPrimary,
                 field: fieldKey,
             };
         }
@@ -239,24 +243,38 @@ export function adapter(config) {
                     let [mainTable, ...remainingTables] = from;
 
                     // include tables
-                    let results = configuration.$data[mainTable.realName];
-                    for(const table of remainingTables) {
+                    function joinTables(results, tables=remainingTables) {
+                        const table = tables.shift();
+                        if(!table) {
+                            return results;
+                        }
                         const refererKey = table.refererTableKey.alias;
                         const referenceKey = table.referenceTableKey.column;
-                        configuration.$data[table.realName].forEach(r => {
-                            const idx = results.findIndex(res => res[refererKey] === r[referenceKey]);
-                            if(idx !== -1) {
-                                results[idx] = { 
-                                    ...results[idx],
-                                    ...Object.fromEntries(select.filter(col => col.table === table.alias).map(col => [col.alias, r[col.column]]))
-                                };
+                        const foreignTable = configuration.$data[table.realName];
+                        
+                        let newResults = [];
+                        for(const result of results) {
+                            const relatedRows = foreignTable.filter(r => r[referenceKey] === result[refererKey]);
+                            if(relatedRows.length > 0) {
+                                newResults = newResults.concat(relatedRows.map(row => {
+                                    return {
+                                        ...result,
+                                        ...Object.fromEntries(select
+                                            .filter(col => col.table === table.alias)
+                                            .map(col => [col.alias, row[col.column]])),
+                                    }
+                                }));
+                            } else {
+                                newResults.push(result);
                             }
-                        });
+                        }
+                        return joinTables(newResults, tables);
                     }
+                    let results = joinTables(configuration.$data[mainTable.realName]);
 
                     // apply where
                     /** @type {any[]} */
-                    results = configuration.$data[mainTable.realName].filter(v => filterFn(v, where));
+                    results = results.filter(v => filterFn(v, where));
 
                     // apply group by
                     if(group_by) {

@@ -79,4 +79,12 @@ const testDatabase = {
 };
 
 const cnn = adapter(testDatabase);
+
+
+// const playlist = new KinshipContext(cnn, "Playlist");
+// playlist.hasMany(m => m.PlaylistTracks.fromTable("PlaylistTrack").withKeys("PlaylistId", "PlaylistId")
+//     .andThatHasOne(m => m.Track.fromTable("Track").withKeys("TrackId", "TrackId")))
+
+// console.log(JSON.stringify(await playlist.include(m => m.PlaylistTracks.thenInclude(m => m.Track)), undefined, 2));
+
 await testAdapter(cnn);
