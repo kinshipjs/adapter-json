@@ -17,80 +17,41 @@ const jsonAdapterStructure = {
     $schema: {
         Car: {
             Id: {
-                table: "Car",
-                field: "Id",
-                alias: "",
                 isPrimary: true,
                 isIdentity: true,
-                isVirtual: false,
-                defaultValue: () => undefined
+                datatype: "int"
             },
             Make: {
-                table: "Car",
-                field: "Make",
-                alias: "",
-                isPrimary: false,
-                isIdentity: false,
-                isVirtual: false,
-                defaultValue: () => undefined
+                datatype: "string",
+                isNullable: true
             },
             Model: {
-                table: "Car",
-                field: "Model",
-                alias: "",
-                isPrimary: false,
-                isIdentity: false,
-                isVirtual: false,
-                defaultValue: () => undefined
+                datatype: "string",
+                isNullable: true
             },
             Color: {
-                table: "Car",
-                field: "Color",
-                alias: "",
-                isPrimary: false,
-                isIdentity: false,
-                isVirtual: false,
-                defaultValue: () => undefined
+                datatype: "string",
+                isNullable: true
             },
             Year: {
-                table: "Car",
-                field: "Year",
-                alias: "",
-                isPrimary: false,
-                isIdentity: false,
-                isVirtual: false,
-                defaultValue: () => undefined
+                datatype: "int",
+                isNullable: true
             },
             Mileage: {
-                table: "Car",
-                field: "Mileage",
-                alias: "",
-                isPrimary: false,
-                isIdentity: false,
-                isVirtual: false,
-                defaultValue: () => undefined
+                datatype: "int",
+                isNullable: true
             },
             MPGHwy: {
-                table: "Car",
-                field: "MPGHwy",
-                alias: "",
-                isPrimary: false,
-                isIdentity: false,
-                isVirtual: false,
-                defaultValue: () => undefined
+                datatype: "float",
+                isNullable: true
             },
             MPGCity: {
-                table: "Car",
-                field: "MPGCity",
-                alias: "",
-                isPrimary: false,
-                isIdentity: false,
-                isVirtual: false,
-                defaultValue: () => undefined
+                datatype: "float",
+                isNullable: true
             },
         }
     },
-    $database: {
+    $data: {
         Car: [
             { Id: 1, Make: "Ford", Model: "Focus", Color: "Yellow", Year: 2020, Mileage: 32145, MPGHwy: 37.6, MPGCity: 26.2 },
             { Id: 2, Make: "Toyota", Model: "Tundra", Color: "Red", Year: 2014, Mileage: 121419, MPGHwy: 32.9, MPGCity: 21.7 },
@@ -134,7 +95,7 @@ import { KinshipContext } from "@kinshipjs/core";
 
 const database = {
   $schema: {} // ... same as $schema from previous section's example
-  $database: localStorage.get('cars')
+  $data: localStorage.get('cars')
 };
 export const usedCars: KinshipContext<Car> = new KinshipContext(adapter(database), "Car");
 ```
@@ -244,9 +205,3 @@ Although, this is not the intention of this adapter, and would likely be its own
 #### MongoDB
 
 Although, this is not the intention of this adapter, and would likely be its own adapter eventually, the json-adapter could be used for `MongoDB` transactions, making it easier to interact with MongoDB documents. Keep in mind, this may have security implications, as testing is not complete, so use in this context at your own risk.
-
-## Notes
-
-Keep in mind, since the JSON adapter works entirely apart from a real database, event handling can emit different arguments than expected. For example, the command that you would receive for any event would be "No command available." and the arguments would likely be some random data that is actually used in the respective command from adapter tools `.execute()`. The arguments is like this because there is no command nor are there arguments. Since `Kinship` does not internally do anything with the serialized command data, other than pass it back to the `.execute()` portion of the adapter, the actual data is passed this way with some type ignoring to achieve the goal of the json-adapter.
-
-Additionally, as the json-adapter is still in development, certain features are still being worked on. Specifically, this would be relationships (`.hasOne()`, `.hasMany()`, `.include()` and their respective chains) and grouping with aggregates.

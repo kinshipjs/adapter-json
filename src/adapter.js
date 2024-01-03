@@ -30,7 +30,7 @@ import { merge, groupBy } from 'lodash-es';
  * @template T
  * @typedef {object} _JsonDatabase
  * @prop {Record<string, Record<string, T>>} $schema
- * Schema of the database
+ * Schema of the database, where each key is a different table, and for each table, an object where every key is a different field.
  * @prop {Record<string, object[]>} $data
  * Actual data itself, stored as an array of objects representing the corresponding schema for the table.
  */
