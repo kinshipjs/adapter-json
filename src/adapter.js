@@ -3,12 +3,33 @@
 // being expected to be sent to a database server. Therefore, many of the types will be casted and what is returned from each of the serialization functions
 // will not reflect what would actually be sent.
 import { KinshipNonUniqueKeyError, KinshipValueCannotBeNullError } from '@kinshipjs/core/errors';
-import _ from 'lodash-es';
+import { merge, groupBy } from 'lodash-es';
+
+/**
+ * @typedef {_JsonDatabase<SchemaColumnDefinition>} JsonDatabase 
+ */
+
+/**
+ * @typedef {object} SchemaColumnDefinition
+ * @prop {boolean=} isPrimary
+ * True if the column is a primary key for the table. (default: false)
+ * @prop {boolean=} isIdentity
+ * True if the column is an identity key for the table. [the column auto increments] (default: false)
+ * @prop {boolean=} isNullable
+ * True if the column is nullable for the table. (default: false)
+ * @prop {boolean=} isUnique
+ * True if the column has a unique constraint, meaning no other rows can have this value. (default: this.isPrimary)
+ * @prop {"string" | "boolean" | "int" | "float" | "date"} datatype
+ * Datatype that this column stores
+ * @prop {(() => string | boolean | number | Date | undefined)=} defaultValue
+ * Function that calculates the default value
+ */
 
 /**
  * Structure for a model that needs to be passed into the adapter when instantiating a `KinshipContext` class object connected to the `json-adapter`.
- * @typedef {object} JsonDatabase
- * @prop {Record<string, Record<string, import("@kinshipjs/core/adapter").SchemaColumnDefinition>>} $schema
+ * @template T
+ * @typedef {object} _JsonDatabase
+ * @prop {Record<string, Record<string, T>>} $schema
  * Schema of the database
  * @prop {Record<string, object[]>} $data
  * Actual data itself, stored as an array of objects representing the corresponding schema for the table.
@@ -37,80 +58,89 @@ function filterFn(m, props, stays=true) {
             if(Array.isArray(prop)) {
                 stays = filterFn(m, prop, stays);
             } else {
+                const isNegated = prop.chain.endsWith("NOT");
+                let evaluated;
                 switch(prop.operator) {
                     case "<": {
                         if(prop.value === null) {
-                            stays = false;
+                            evaluated = false;
                             break;
                         }
-                        stays = m[prop.property] < prop.value;
+                        evaluated = (m[prop.property] < prop.value);
                         break;
                     }
                     case "<=": {
                         if(prop.value === null) {
-                            stays = false;
+                            evaluated = false;
                             break;
                         }
-                        stays = m[prop.property] <= prop.value;
+                        evaluated = (m[prop.property] <= prop.value);
                         break;
                     }
                     case ">": {
                         if(prop.value === null) {
-                            stays = false;
+                            evaluated = false;
                             break;
                         }
-                        stays = m[prop.property] > prop.value;
+                        evaluated = m[prop.property] > prop.value;
                         break;
                     }
                     case ">=": {
                         if(prop.value === null) {
-                            stays = false;
+                            evaluated = false;
                             break;
                         }
-                        stays = m[prop.property] >= prop.value;
+                        evaluated = m[prop.property] >= prop.value;
                         break;
                     }
                     case "<>": {
-                        stays = m[prop.property] !== prop.value;
+                        evaluated = m[prop.property] !== prop.value;
                         break;
                     }
                     case "=": {
-                        stays = m[prop.property] === prop.value;
+                        evaluated = m[prop.property] === prop.value;
                         break;
                     }
                     case "BETWEEN": {
                         if(prop.value === null) {
-                            stays = false;
+                            evaluated = false;
                             break;
                         }
-                        stays = m[prop.property] <= prop.value && m[prop.property] >= prop.value;
+                        evaluated = m[prop.property] >= prop.value[0] && m[prop.property] <= prop.value[1];
                         break;
                     }
                     case "IN": {
                         if(prop.value === null || !Array.isArray(prop.value)) {
-                            stays = false;
+                            evaluated = false;
                             break;
                         }
-                        stays = prop.value.includes(m[prop.property]);
+                        evaluated = prop.value.includes(m[prop.property]);
                         break;
                     }
                     case "IS": {
-                        stays = m[prop.property] === null;
+                        evaluated = m[prop.property] === null;
                         break;
                     }
                     case "IS NOT": {
-                        stays = m[prop.property] !== null;
+                        evaluated = m[prop.property] !== null;
                         break;
                     }
                     case "LIKE": {
                         if(prop.value === null || typeof prop.value !== "string") {
-                            stays = false;
+                            evaluated = false;
                             break;
                         }
-                        stays = new RegExp(prop.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\%/g, ".*"), "g").test(m[prop.property]);
+                        evaluated = new RegExp(prop.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\%/g, ".*"), "g").test(m[prop.property]);
                         break;
                     }
+                    default: {
+                        evaluated = false;
+                    }
                 }
+                if(isNegated) {
+                    evaluated = !evaluated;
+                }
+                stays = evaluated;
             }
         }
         return stays;
@@ -118,18 +148,36 @@ function filterFn(m, props, stays=true) {
     return true;
 };
 
-const groupBy = keys => array =>
-  array.reduce((objectsByKeyValue, obj) => {
-    const value = keys.map(key => obj[key]).join('-');
-    objectsByKeyValue[value] = (objectsByKeyValue[value] || []).concat(obj);
-    return objectsByKeyValue;
-  }, {});
-
 /** 
  * Adapter for `Kinship` with intended use on JavaScript objects.
- * @type {import('@kinshipjs/core/adapter').InitializeAdapterCallback<JsonDatabase>} 
+ * @param {_JsonDatabase<SchemaColumnDefinition>} config
+ * @returns {import('@kinshipjs/core/adapter').KinshipAdapterConnection}
  */
-export function adapter(configuration) {
+export function adapter(config) {
+    /** @type {_JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>} */
+    let configuration = {
+        $data: config.$data,
+        $schema: {}
+    };
+    for(const tableKey in config.$schema) {
+        const table = config.$schema[tableKey];
+        configuration.$schema[tableKey] = {};
+        for(const fieldKey in table) {
+            configuration.$schema[tableKey][fieldKey] = {
+                alias: "",
+                commandAlias: "",
+                datatype: config.$schema[tableKey][fieldKey].datatype,
+                defaultValue: config.$schema[tableKey][fieldKey].defaultValue ?? (() => undefined),
+                table: tableKey,
+                isPrimary: config.$schema[tableKey][fieldKey].isPrimary ?? false,
+                isIdentity: config.$schema[tableKey][fieldKey].isIdentity ?? false,
+                isVirtual: false,
+                isNullable: config.$schema[tableKey][fieldKey].isNullable ?? false,
+                isUnique: config.$schema[tableKey][fieldKey].isUnique ?? false,
+                field: fieldKey,
+            };
+        }
+    }
     return {
         syntax: {
             dateString: (date) => /** @type {any} */ (date)
@@ -148,20 +196,22 @@ export function adapter(configuration) {
                     return /** @type {any} */ (args);
                 },
                 async forInsert(cmd, args) {
-                    const [commit] = /** @type {[(cnn: JsonDatabase) => number[]]} */ (/** @type {unknown} */ (args));
+                    const [commit] = /** @type {[(cnn: _JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>) => number[]]} */ (/** @type {unknown} */ (args));
                     return commit(scope.transaction ?? configuration);
                 },
                 async forUpdate(cmd, args) {
-                    const [commit] = /** @type {[(cnn: JsonDatabase) => number]} */ (/** @type {unknown} */ (args));
+                    const [commit] = /** @type {[(cnn: _JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>) => number]} */ (/** @type {unknown} */ (args));
                     return commit(scope.transaction ?? configuration);
                 },
                 async forDelete(cmd, args) {
-                    const [commit] = /** @type {[(cnn: JsonDatabase) => number]} */ (/** @type {unknown} */ (args));
-                    return commit(scope.transaction ?? configuration);
+                    const [commit] = /** @type {[(cnn: _JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>) => number]} */ (/** @type {unknown} */ (args));
+                    const result = commit(scope.transaction ?? configuration);
+                    return result;
                 },
                 async forTruncate(cmd, args) {
-                    const [commit] = /** @type {[(cnn: JsonDatabase) => number]} */ (/** @type {unknown} */ (args));
-                    return commit(scope.transaction ?? configuration);
+                    const [commit] = /** @type {[(cnn: _JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>) => number]} */ (/** @type {unknown} */ (args));
+                    const result = commit(scope.transaction ?? configuration);
+                    return result;
                 },
                 async forDescribe(cmd, args) {
                     return /** @type {any} */ (args);
@@ -172,7 +222,7 @@ export function adapter(configuration) {
                             return JSON.parse(JSON.stringify(configuration));
                         },
                         commit(transaction) {
-                            configuration.$data = _.merge(transaction?.$data, configuration.$data);
+                            configuration.$data = merge(configuration.$data, transaction?.$data);
                         },
                         rollback(transaction) {
                             // nothing happens.
@@ -188,7 +238,7 @@ export function adapter(configuration) {
                     let { where, group_by, order_by, limit, offset, select, from } = data;
                     let [mainTable, ...remainingTables] = from;
 
-                    // @TODO: apply from (look for like primary keys then map property names to the aliased versions.)
+                    // include tables
                     let results = configuration.$data[mainTable.realName];
                     for(const table of remainingTables) {
                         const refererKey = table.refererTableKey.alias;
@@ -210,42 +260,77 @@ export function adapter(configuration) {
 
                     // apply group by
                     if(group_by) {
-                        results = groupBy(group_by.map(col => col.alias))(results);
+                        const grouped = groupBy(results, r => group_by?.map(col => r[col.alias]));
+
+                        // create a new object for each group, where only the keys in `group_by` are retained, as well as all aggregates.
+                        // any unnecessary aggregates will be filtered our at the `select` stage.
+                        let newResults = [];
+                        for(const groupKey in grouped) {
+                            const groupedRecords = grouped[groupKey];
+                            let record = {
+                                $total: groupedRecords.length
+                            };
+                            for(const key in groupedRecords[0]) {
+                                if(group_by.findIndex(col => col.alias === key) !== -1) {
+                                    record[key] = groupedRecords[0][key];
+                                } else {
+                                    if(['number', 'bigint'].includes(typeof groupedRecords[0][key])) {
+                                        record[`$sum_${key}`] = groupedRecords.reduce((acc, gr) => acc + gr[key], 0);
+                                        record[`$avg_${key}`] = record[`$sum_${key}`] / record['$total'];
+                                        record[`$min_${key}`] = Math.min(...groupedRecords.map(gr => gr[key]));
+                                        record[`$max_${key}`] = Math.max(...groupedRecords.map(gr => gr[key]));
+                                    }
+                                }
+                            }
+                            newResults.push(record);
+                        }
+                        results = newResults;
                     }
 
                     // apply sort by
                     if(order_by) {
-                        for(const prop of order_by) {
-                            results = results.sort((a,b) => {
-                                if(prop.direction === "DESC") {
-                                    [b,a] = [a,b];
+                        const sortFn = (a, b, idx=0) => {
+                            if(!order_by || idx < 0 || idx >= order_by.length) {
+                                return 0;
+                            }
+                            const prop = order_by[idx];
+                            const direction = prop.direction === "DESC" ? -1 : 1;
+                            let sortValue = 0;
+                            switch(typeof a[prop.alias]) {
+                                case "string": {
+                                    sortValue = a[prop.alias].localeCompare(b[prop.alias]) * direction;
+                                    break;
                                 }
-                                switch(typeof a[prop.alias]) {
-                                        case "string": {
-                                            return a[prop.alias].localeCompare(b[prop.alias]);
-                                        }
-                                        case "boolean": {
-                                            return a[prop.alias] - b[prop.alias];
-                                        }
-                                        case "object": {
-                                            if(a[prop.alias] instanceof Date) {
-                                                return a[prop.alias].getTime() - b[prop.alias].getTime();
-                                            } else {
-                                                throw Error(`Unexpected datatype.`);
-                                            }
-                                        }
-                                        case "bigint": {
-                                            return a[prop.alias] - b[prop.alias];
-                                        }
-                                        case "number": {
-                                            return a[prop.alias] - b[prop.alias];
-                                        }
-                                        default: {
-                                                throw Error(`Unexpected datatype.`);
-                                        }
+                                case "boolean": {
+                                    sortValue = (a[prop.alias] - b[prop.alias]) * direction;
+                                    break;
+                                }
+                                case "object": {
+                                    if(a[prop.alias] instanceof Date) {
+                                        sortValue = (a[prop.alias].getTime() - b[prop.alias].getTime()) * direction;
+                                        break;
+                                    } else {
+                                        throw Error(`Unexpected datatype.`);
                                     }
-                            });
-                        }
+                                }
+                                case "bigint": {
+                                    sortValue = (a[prop.alias] - b[prop.alias]) * direction;
+                                    break;
+                                }
+                                case "number": {
+                                    sortValue = (a[prop.alias] - b[prop.alias]) * direction;
+                                    break;
+                                }
+                                default: {
+                                    throw Error(`Unexpected datatype.`);
+                                }
+                            }
+                            if(sortValue === 0) {
+                                return sortFn(a,b,idx + 1);
+                            }
+                            return sortValue;
+                        };
+                        results.sort((a,b) => sortFn(a,b,0));
                     }
 
                     // apply offset and limit
@@ -268,7 +353,6 @@ export function adapter(configuration) {
                         results = results.map(r => {
                             let o = {};
                             for(const column of select) {
-                                if("aggregate" in column) continue;
                                 o[column.alias] = r[column.alias];
                             }
                             return o;
@@ -281,7 +365,7 @@ export function adapter(configuration) {
                     }
                 },
                 forInsert(data) {
-                    /** @param {JsonDatabase} configuration */
+                    /** @param {_JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>} configuration */
                     const commit = (configuration) => {
                         try {
                             const { columns, table, values } = data;
@@ -289,7 +373,7 @@ export function adapter(configuration) {
                             const newRecords = values.map((v,n) => ({
                                 // start with all columns from schema, so any columns that did not exist in `columns` (from the records inserted) will exist then, defaulted with null or insert id.
                                 ...Object.fromEntries(Object.values(configuration.$schema[table]).map(c => {
-                                    if(configuration.$schema[table][c.field].isIdentity) {
+                                    if(configuration.$schema[table][c.field]?.isIdentity) {
                                         return [c.field, startLen+n];
                                     }
                                     return [c.field, null];
@@ -308,14 +392,17 @@ export function adapter(configuration) {
                             const newTable = configuration.$data[table].concat(newRecords);
         
                             const uniques = new Set();
-                            const uniqueKeys = Object.keys(configuration.$schema[table]).filter(k => configuration.$schema[table][k].isPrimary || configuration.$schema[table][k].isUnique);
-                            for(const r of newTable) {
-                                const fullKey = uniqueKeys.map(k => r[k]).join('_');
-                                if(uniques.has(fullKey)) {
-                                    throw new KinshipNonUniqueKeyError(1, ``);
-                                    // throw ErrorTypes.NON_UNIQUE_KEY();
+                            const uniqueKeys = Object.keys(configuration.$schema[table])
+                                .filter(k => configuration.$schema[table][k].isPrimary || configuration.$schema[table][k].isUnique);
+                            if(uniqueKeys.length > 0) {
+                                for(const r of newTable) {
+                                    const fullKey = uniqueKeys.map(k => r[k]).join('_');
+                                    if(uniques.has(fullKey)) {
+                                        throw new KinshipNonUniqueKeyError(1, `${fullKey}`);
+                                        // throw ErrorTypes.NON_UNIQUE_KEY();
+                                    }
+                                    uniques.add(fullKey);
                                 }
-                                uniques.add(fullKey);
                             }
                             
                             configuration.$data[table] = newTable;
@@ -334,7 +421,7 @@ export function adapter(configuration) {
                     };
                 },
                 forUpdate(data) {
-                    /** @param {JsonDatabase} configuration */
+                    /** @param {_JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>} configuration */
                     const commit = (configuration) => {
                         try {
                             let numAffected = 0;
@@ -382,7 +469,7 @@ export function adapter(configuration) {
                     };
                 },
                 forDelete(data) {
-                    /** @param {JsonDatabase} configuration */
+                    /** @param {_JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>} configuration */
                     const commit = (configuration) => {
                         try {
                             const { table, where } = data;
@@ -399,7 +486,7 @@ export function adapter(configuration) {
                     };
                 },
                 forTruncate({ table }) {
-                    /** @param {JsonDatabase} configuration */
+                    /** @param {_JsonDatabase<import('@kinshipjs/core/adapter').SchemaColumnDefinition>} configuration */
                     const commit = (configuration) => {
                         try {
                             const len = configuration.$data[table].length;
@@ -408,7 +495,7 @@ export function adapter(configuration) {
                         } catch(err) {
                             throw err;
                         }
-                    }
+                    };
                     return {
                         cmd: `No command available.`,
                         args: [(/** @type {any} */ (commit))]
