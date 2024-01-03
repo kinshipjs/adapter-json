@@ -6,36 +6,6 @@ import { KinshipNonUniqueKeyError, KinshipValueCannotBeNullError } from '@kinshi
 import { clone, merge, groupBy, extend } from 'lodash-es';
 
 /**
- * @typedef {_JsonDatabase<SchemaColumnDefinition>} JsonDatabase 
- */
-
-/**
- * @typedef {object} SchemaColumnDefinition
- * @prop {boolean=} isPrimary
- * True if the column is a primary key for the table. (default: false)
- * @prop {boolean=} isIdentity
- * True if the column is an identity key for the table. [the column auto increments] (default: false)
- * @prop {boolean=} isNullable
- * True if the column is nullable for the table. (default: false)
- * @prop {boolean=} isUnique
- * True if the column has a unique constraint, meaning no other rows can have this value. (default: this.isPrimary)
- * @prop {"string" | "boolean" | "int" | "float" | "date"} datatype
- * Datatype that this column stores
- * @prop {(() => string | boolean | number | Date | undefined)=} defaultValue
- * Function that calculates the default value
- */
-
-/**
- * Structure for a model that needs to be passed into the adapter when instantiating a `KinshipContext` class object connected to the `json-adapter`.
- * @template T
- * @typedef {object} _JsonDatabase
- * @prop {Record<string, Record<string, T>>} $schema
- * Schema of the database, where each key is a different table, and for each table, an object where every key is a different field.
- * @prop {Record<string, object[]>} $data
- * Actual data itself, stored as an array of objects representing the corresponding schema for the table.
- */
-
-/**
  * Uses `Kinship`'s WHERE clause properties (built from `.where()`) to recursively check if the object should stay or not within the context of the "command".  
  * Unlike SQL, this function short circuits if an OR condition has been met and the last condition was true (or if an AND condition is met and the last condition was false)
  * @param {any} m
@@ -529,3 +499,33 @@ function _adapter(configuration) {
         }
     }
 }
+
+/**
+ * @typedef {_JsonDatabase<SchemaColumnDefinition>} JsonDatabase 
+ */
+
+/**
+ * @typedef {object} SchemaColumnDefinition
+ * @prop {boolean=} isPrimary
+ * True if the column is a primary key for the table. (default: false)
+ * @prop {boolean=} isIdentity
+ * True if the column is an identity key for the table. [the column auto increments] (default: false)
+ * @prop {boolean=} isNullable
+ * True if the column is nullable for the table. (default: false)
+ * @prop {boolean=} isUnique
+ * True if the column has a unique constraint, meaning no other rows can have this value. (default: this.isPrimary)
+ * @prop {"string" | "boolean" | "int" | "float" | "date"} datatype
+ * Datatype that this column stores
+ * @prop {(() => string | boolean | number | Date | undefined)=} defaultValue
+ * Function that calculates the default value
+ */
+
+/**
+ * Structure for a model that needs to be passed into the adapter when instantiating a `KinshipContext` class object connected to the `json-adapter`.
+ * @template T
+ * @typedef {object} _JsonDatabase
+ * @prop {Record<string, Record<string, T>>} $schema
+ * Schema of the database, where each key is a different table, and for each table, an object where every key is a different field.
+ * @prop {Record<string, object[]>} $data
+ * Actual data itself, stored as an array of objects representing the corresponding schema for the table.
+ */
