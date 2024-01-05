@@ -1,7 +1,6 @@
 //@ts-check
-import { KinshipContext } from "@kinshipjs/core";
-import { adapter } from "../src/adapter.js";
 import { testAdapter } from '@kinshipjs/adapter-tests';
+import { adapter } from "../src/adapter.js";
 
 /**
  * @param {"Album"|"Artist"|"Customer"|"Employee"|"Genre"|"Invoice"|"InvoiceLine"|"MediaType"|"Playlist"|"PlaylistTrack"|"Track"} table

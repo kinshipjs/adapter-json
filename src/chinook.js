@@ -84,14 +84,15 @@ export async function createChinookDatabase() {
  * @param {ChinookContexts} contexts
  */
 export async function configureRelationships(contexts) {
+    contexts.albums.hasMany(m => m.Tracks.from(contexts.tracks, m => m.AlbumId, m => m.AlbumId));
+    
     contexts.tracks
         .hasOne(m => m.Album.from(contexts.albums, m => m.AlbumId, m => m.AlbumId))
         .hasOne(m => m.Genre.from(contexts.genres, m => m.GenreId, m => m.GenreId))
         .hasMany(m => m.PlaylistTracks.from(contexts.playlistTracks, m => m.TrackId, m => m.TrackId)
             .andThatHasOne(m => m.Playlist.from(contexts.playlists, m => m.PlaylistId, m => m.PlaylistId)));
     
-    contexts.albums.hasMany(m => m.Tracks.from(contexts.tracks, m => m.AlbumId, m => m.AlbumId));
-
+    
 }
 
 /**
@@ -171,7 +172,7 @@ export async function configureRelationships(contexts) {
  * @prop {number} CustomerId
  * 
  * @prop {Customer=} Customer
- * @prop {InvoiceLines[]=} InvoiceLines 
+ * @prop {InvoiceLine[]=} InvoiceLines 
  *
  * @typedef {Infer<_Invoice & {[K in keyof Address as `Billing${K}`]-?: Address[K]}>} Invoice
  */

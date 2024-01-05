@@ -3,7 +3,7 @@
 // being expected to be sent to a database server. Therefore, many of the types will be casted and what is returned from each of the serialization functions
 // will not reflect what would actually be sent.
 import { KinshipNonUniqueKeyError, KinshipValueCannotBeNullError } from '@kinshipjs/core/errors';
-import { clone, merge, groupBy, extend } from 'lodash-es';
+import { merge, groupBy } from 'lodash-es';
 
 /**
  * Uses `Kinship`'s WHERE clause properties (built from `.where()`) to recursively check if the object should stay or not within the context of the "command".  
@@ -382,11 +382,13 @@ function _adapter(configuration) {
                             const uniques = new Set();
                             const uniqueKeys = Object.keys(configuration.$schema[table])
                                 .filter(k => configuration.$schema[table][k].isPrimary || configuration.$schema[table][k].isUnique);
+                            console.log(uniqueKeys);
                             if(uniqueKeys.length > 0) {
                                 for(const r of newTable) {
                                     const fullKey = uniqueKeys.map(k => r[k]).join('_');
+                                    console.log(fullKey, uniques, uniques.has(fullKey));
                                     if(uniques.has(fullKey)) {
-                                        throw new KinshipNonUniqueKeyError(1, `${fullKey}`);
+                                        throw new KinshipNonUniqueKeyError(1, `The following key/values are not unique: ${uniqueKeys.map(k => `${k}: ${r[k]}`).join(', ')}`);
                                         // throw ErrorTypes.NON_UNIQUE_KEY();
                                     }
                                     uniques.add(fullKey);
